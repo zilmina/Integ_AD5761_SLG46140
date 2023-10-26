@@ -6,6 +6,7 @@ import os
 import time
 import pigpio
 import spidev
+import math
 
 pi = pigpio.pi()
 pi.set_mode(7, pigpio.OUTPUT) # Counter
@@ -55,11 +56,11 @@ time.sleep(0.0001)
 # print("RESET")
 # time.sleep(1)
 
-CV	= 0b00
+CV	= 0b01
 OVR	= 0b0
-B2C	= 0b1
+B2C	= 0b0
 ETS	= 0b1
-PV	= 0b00
+PV	= 0b01
 RA	= 0b000
 to_send = [0b00000100, 0b00000 << 3 | CV << 1 | OVR, B2C << 7 | ETS << 6 | 0b0 << 5 | PV << 3 | RA]
 print(bin(int(x)) for x in to_send)
@@ -103,44 +104,81 @@ while 1:
     # to_send = [0b00001110, 0xaa, 0xaa]
     # result = spi.xfer2(to_send)
     # print(bin(int(x)) for x in result)
-    to_send = [0b00001111, 0x00, 0x00]
-    pi.write(8, 0)
-    spi.writebytes(to_send)
-    pi.write(8, 1)
-    time.sleep(0.0001)
 
-    CV	= 0b00
-    OVR	= 0b0
-    B2C	= 0b1
-    ETS	= 0b1
-    PV	= 0b00
-    RA	= 0b000
+    # RESET commands
+    #################################
+    # to_send = [0b00001111, 0x00, 0x00]
+    # pi.write(8, 0)
+    # spi.writebytes(to_send)
+    # pi.write(8, 1)
+    # time.sleep(0.0001)
     
-    to_send = [0b00000100, 0b00000 << 3 | CV << 1 | OVR, B2C << 7 | ETS << 6 | 0b0 << 5 | PV << 3 | RA]
-    # print(bin(int(x)) for x in to_send)
-    pi.write(8, 0)
-    spi.writebytes(to_send)
-    pi.write(8, 1)
-    time.sleep(0.0001)
+    # to_send = [0b00000100, 0b00000 << 3 | CV << 1 | OVR, B2C << 7 | ETS << 6 | 0b0 << 5 | PV << 3 | RA]
+    # pi.write(8, 0)
+    # spi.writebytes(to_send)
+    # pi.write(8, 1)
+    # time.sleep(0.0001)
 
-    to_send = [0b00001100, 0x00, 0x00]
-    pi.write(8, 0)
-    spi.writebytes(to_send)
-    pi.write(8, 1)
-    time.sleep(0.0001)
+    # to_send = [0b00001100, 0x00, 0x00]
+    # pi.write(8, 0)
+    # spi.writebytes(to_send)
+    # pi.write(8, 1)
+    # time.sleep(0.0001)
     
-    pi.write(8, 0)
-    result = spi.readbytes(3)
-    pi.write(8, 1)
-    time.sleep(0.0001)
-    # print(bin(int(x)) for x in result)
+    # pi.write(8, 0)
+    # result = spi.readbytes(3)
+    # pi.write(8, 1)
+    # time.sleep(0.0001)
+    #################################
 
+    
+    # to_send = [0b00000100, 0b00000 << 3 | CV << 1 | OVR, B2C << 7 | ETS << 6 | 0b0 << 5 | PV << 3 | RA]
+    # pi.write(8, 0)
+    # spi.writebytes(to_send)
+    # pi.write(8, 1)
+    # time.sleep(0.0001)
+
+    # to_send = [0b00001100, 0x00, 0x00]
+    # pi.write(8, 0)
+    # spi.writebytes(to_send)
+    # pi.write(8, 1)
+    # time.sleep(0.0001)
+    
+    # pi.write(8, 0)
+    # result = spi.readbytes(3)
+    # pi.write(8, 1)
+    # time.sleep(0.0001)
+    #################################
+
+
+    # Read Count command
+    #################################
     pi.write(7, 0)
     result = spi.readbytes(2)
     pi.write(7, 1)
     time.sleep(0.0001)    
-    print(result[1]+result[0]*2**8)
+    #################################
 
+    Vout =10*math.sin((result[1]+result[0]*2**8)/384*2*math.pi)
+    print(f"Count: {result[1]+result[0]*2**8:10}, OUTPUT: {Vout:10}")
+
+    Vref = 2.5
+    C = 4
+    M = 8
+    N = 16
+    D = min(int((Vout/Vref + C)*2**N/M),0xffff)
+    byteLowD = D & 0xff
+    byteHighD = (D >> 8) & 0xFF
+    
+    print(f"raw D: {D:5}High D:{hex(byteHighD)}, Low D:{hex(byteLowD)}")
+    # Set V out commands
+    #################################
+    to_send = [0b00000011, byteHighD, byteLowD]
+    pi.write(8, 0)
+    spi.writebytes(to_send)
+    pi.write(8, 1)
+    time.sleep(0.0001)
+    #################################
 
     # Pause so we can see them
     time.sleep(0.1)
