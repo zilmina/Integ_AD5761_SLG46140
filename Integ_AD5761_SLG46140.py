@@ -42,18 +42,14 @@ spi.no_cs  = True
 spi.max_speed_hz = 50000
 spi.mode = 1
 
+# RESET commands
+#################################
 to_send = [0b00001111, 0x00, 0x00]
 pi.write(8, 0)
 spi.writebytes(to_send)
 pi.write(8, 1)
 time.sleep(0.0001)
-
-to_send = [0b00001111, 0x00, 0x00]
-pi.write(8, 0)
-spi.writebytes(to_send)
-pi.write(8, 1)
-time.sleep(0.0001)
-# print("RESET")
+print("RESET")
 # time.sleep(1)
 
 CV	= 0b01
@@ -63,93 +59,18 @@ ETS	= 0b1
 PV	= 0b01
 RA	= 0b000
 to_send = [0b00000100, 0b00000 << 3 | CV << 1 | OVR, B2C << 7 | ETS << 6 | 0b0 << 5 | PV << 3 | RA]
-print(bin(int(x)) for x in to_send)
+print("Load Control Register")
 pi.write(8, 0)
 spi.writebytes(to_send)
 pi.write(8, 1)
 time.sleep(0.0001)
+#################################
 
-to_send = [0b00001100, 0x00, 0x00]
-pi.write(8, 0)
-spi.writebytes(to_send)
-pi.write(8, 1)
-time.sleep(0.0001)
-# print("stand by...")
-# time.sleep(5)
-
-# to_send = [0b00001100, 0x00, 0x00]
-pi.write(8, 0)
-result = spi.readbytes(3)
-pi.write(8, 1)
-time.sleep(0.0001)
-print("Read Control Register")
-# print(bin(int(x)) for x in result)
-time.sleep(5)
-
+time.sleep(1)
 # Turn on one segment of each character to show that we can
 # address all of the segments
 print("START\n")
 while 1:
-
-    # The last character
-#    to_send = [0b0000, 0b0001, 0xff]
-#    spi.xfer(to_send)
-
-    # to_send = [0b00000011, 0x11, 0x11]
-    # spi.xfer2(to_send)
-
-    # to_send = [0b00001011, 0x00, 0x00]
-    # spi.xfer2(to_send)
-
-    # to_send = [0b00001110, 0xaa, 0xaa]
-    # result = spi.xfer2(to_send)
-    # print(bin(int(x)) for x in result)
-
-    # RESET commands
-    #################################
-    # to_send = [0b00001111, 0x00, 0x00]
-    # pi.write(8, 0)
-    # spi.writebytes(to_send)
-    # pi.write(8, 1)
-    # time.sleep(0.0001)
-    
-    # to_send = [0b00000100, 0b00000 << 3 | CV << 1 | OVR, B2C << 7 | ETS << 6 | 0b0 << 5 | PV << 3 | RA]
-    # pi.write(8, 0)
-    # spi.writebytes(to_send)
-    # pi.write(8, 1)
-    # time.sleep(0.0001)
-
-    # to_send = [0b00001100, 0x00, 0x00]
-    # pi.write(8, 0)
-    # spi.writebytes(to_send)
-    # pi.write(8, 1)
-    # time.sleep(0.0001)
-    
-    # pi.write(8, 0)
-    # result = spi.readbytes(3)
-    # pi.write(8, 1)
-    # time.sleep(0.0001)
-    #################################
-
-    
-    # to_send = [0b00000100, 0b00000 << 3 | CV << 1 | OVR, B2C << 7 | ETS << 6 | 0b0 << 5 | PV << 3 | RA]
-    # pi.write(8, 0)
-    # spi.writebytes(to_send)
-    # pi.write(8, 1)
-    # time.sleep(0.0001)
-
-    # to_send = [0b00001100, 0x00, 0x00]
-    # pi.write(8, 0)
-    # spi.writebytes(to_send)
-    # pi.write(8, 1)
-    # time.sleep(0.0001)
-    
-    # pi.write(8, 0)
-    # result = spi.readbytes(3)
-    # pi.write(8, 1)
-    # time.sleep(0.0001)
-    #################################
-
 
     # Read Count command
     #################################
@@ -159,8 +80,9 @@ while 1:
     time.sleep(0.0001)    
     #################################
 
-    Vout =10*math.sin((result[1]+result[0]*2**8)/384*2*math.pi)
-    print(f"Count: {result[1]+result[0]*2**8:10}, OUTPUT: {Vout:10}")
+    # Compute Output
+    Vout =10*math.sin((result[1]+result[0]*2**8)/768*2*math.pi)
+    print(f"Count: {result[1]+result[0]*2**8:10}, OUTPUT(pm 2LSB = {20/2**16:12.5E} V): {Vout:12.5E} ({Vout-20/2**16:12.5E} - {Vout+20/2**16:12.5E})")
 
     Vref = 2.5
     C = 4
@@ -171,6 +93,7 @@ while 1:
     byteHighD = (D >> 8) & 0xFF
     
     print(f"raw D: {D:5}High D:{hex(byteHighD)}, Low D:{hex(byteLowD)}")
+
     # Set V out commands
     #################################
     to_send = [0b00000011, byteHighD, byteLowD]
@@ -180,10 +103,9 @@ while 1:
     time.sleep(0.0001)
     #################################
 
-    # Pause so we can see them
-    time.sleep(0.1)
+    # Pause 
+    time.sleep(0.01)
 
 
-spi.close()
 spi.close()
 pi.stop()
