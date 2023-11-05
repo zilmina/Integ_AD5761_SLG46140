@@ -11,15 +11,20 @@ import math
 pi = pigpio.pi()
 pi.set_mode(7, pigpio.OUTPUT) # Counter
 pi.set_mode(8, pigpio.OUTPUT) # DAC
+pi.set_mode(26, pigpio.OUTPUT) # POWER
+
 
 pi.set_mode(22, pigpio.OUTPUT)
 pi.set_mode(23, pigpio.OUTPUT)
 pi.set_mode(24, pigpio.OUTPUT)
 pi.set_mode(25, pigpio.INPUT)
 
+pi.write(26, 1)  # set pin#22 to HIGH
+
 pi.write(22, 1)  # set pin#22 to HIGH
 pi.write(23, 1)  # set pin#22 to HIGH
 pi.write(24, 1)  # set pin#22 to HIGH
+pi.write(26, 1)  # set pin#22 to HIGH
 time.sleep(0.01)
 pi.write(24, 0)  # set pin#22 to HIGH
 time.sleep(0.01)
@@ -70,18 +75,45 @@ time.sleep(1)
 # Turn on one segment of each character to show that we can
 # address all of the segments
 print("START\n")
-while 1:
+try:
+    while 1:
 
-    # Read Count command
-    #################################
-    pi.write(7, 0)
-    result = spi.readbytes(2)
-    pi.write(7, 1)
-    time.sleep(0.0001)    
-    #################################
+        # Read Count command
+        #################################
+        pi.write(7, 0)
+        result = spi.readbytes(2)
+        pi.write(7, 1)
+        time.sleep(0.0001)    
+        #################################
 
+        # Compute Output
+        Vout =10*math.sin((result[1]+result[0]*2**8)/768*2*math.pi)
+        print(f"Count: {result[1]+result[0]*2**8:10}, OUTPUT(pm 2LSB = {20/2**16:12.5E} V): {Vout:12.5E} ({Vout-20/2**16:12.5E} - {Vout+20/2**16:12.5E})")
+
+        Vref = 2.5
+        C = 4
+        M = 8
+        N = 16
+        D = min(int((Vout/Vref + C)*2**N/M),0xffff)
+        byteLowD = D & 0xff
+        byteHighD = (D >> 8) & 0xFF
+        
+        print(f"raw D: {D:5}High D:{hex(byteHighD)}, Low D:{hex(byteLowD)}")
+
+        # Set V out commands
+        #################################
+        to_send = [0b00000011, byteHighD, byteLowD]
+        pi.write(8, 0)
+        spi.writebytes(to_send)
+        pi.write(8, 1)
+        time.sleep(0.0001)
+        #################################
+
+        # Pause 
+        time.sleep(0.01)
+except KeyboardInterrupt:
     # Compute Output
-    Vout =10*math.sin((result[1]+result[0]*2**8)/768*2*math.pi)
+    Vout = 0
     print(f"Count: {result[1]+result[0]*2**8:10}, OUTPUT(pm 2LSB = {20/2**16:12.5E} V): {Vout:12.5E} ({Vout-20/2**16:12.5E} - {Vout+20/2**16:12.5E})")
 
     Vref = 2.5
@@ -91,7 +123,7 @@ while 1:
     D = min(int((Vout/Vref + C)*2**N/M),0xffff)
     byteLowD = D & 0xff
     byteHighD = (D >> 8) & 0xFF
-    
+
     print(f"raw D: {D:5}High D:{hex(byteHighD)}, Low D:{hex(byteLowD)}")
 
     # Set V out commands
@@ -102,10 +134,6 @@ while 1:
     pi.write(8, 1)
     time.sleep(0.0001)
     #################################
-
-    # Pause 
-    time.sleep(0.01)
-
-
-spi.close()
-pi.stop()
+    pi.write(26, 0)
+    spi.close()
+    pi.stop()
